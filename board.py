@@ -185,9 +185,14 @@ class Board(arcade.View):
         self.manager.disable()
 
     def on_update(self, delta_time):
-        # Clear check notification after 3 seconds
+        # Clear check notification after 3 seconds OR if no longer in check
         if self.check_notification_time is not None:
             if datetime.now() - self.check_notification_time > timedelta(seconds=3):
+                self.check_notification_time = None
+                self.white_in_check = False
+                self.black_in_check = False
+            # Clear if player is no longer in check
+            elif not self.white_in_check and not self.black_in_check:
                 self.check_notification_time = None
 
         # Provide conditions for the timer, check to see if the turn has begun
@@ -879,12 +884,6 @@ class Board(arcade.View):
     def switch_turn(self):
         self.promotion_triggered = False
         self.castle_triggered = False
-
-        # Clear check flags when not in check anymore
-        if not self.white_in_check:
-            self.check_notification_time = None
-        if not self.black_in_check:
-            self.check_notification_time = None
 
         # Switch the turn between white and black
         if self.current_turn == white_allegiance:
