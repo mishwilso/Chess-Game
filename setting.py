@@ -24,7 +24,7 @@ class SettingsMenu(arcade.gui.UIMouseFilterMixin, arcade.gui.UIAnchorLayout):
         super().__init__(size_hint=(1, 1))
 
         # Setup frame which will act like the window.
-        frame = self.add(arcade.gui.UIAnchorLayout(width=300, height=400, size_hint=None))
+        frame = self.add(arcade.gui.UIAnchorLayout(width=300, height=480, size_hint=None))
         frame.with_padding(all=20)
 
         # Add a background to the window.
@@ -35,6 +35,9 @@ class SettingsMenu(arcade.gui.UIMouseFilterMixin, arcade.gui.UIAnchorLayout):
         # The type of event listener we used earlier for the button will not work here.
         back_button = arcade.gui.UIFlatButton(text="Back", width=250)
         back_button.on_click = self.on_click_back_button
+
+        menu_button = arcade.gui.UIFlatButton(text="Return to Menu", width=250)
+        menu_button.on_click = self.on_click_menu_button
 
         quit_button = arcade.gui.UIFlatButton(text="Quit", width=250)
         quit_button.on_click = self.on_click_quit_button
@@ -80,14 +83,15 @@ class SettingsMenu(arcade.gui.UIMouseFilterMixin, arcade.gui.UIAnchorLayout):
                                                   height=40,
                                                   style=self.get_button_styled(arcade.color.QUEEN_BLUE))
 
-        grid = arcade.gui.UIGridLayout(column_count=2, row_count=4, horizontal_spacing=13, vertical_spacing=20)
+        grid = arcade.gui.UIGridLayout(column_count=2, row_count=5, horizontal_spacing=13, vertical_spacing=20)
 
         grid.add(default_button, col_num=0, row_num=0)
         grid.add(pink_button, col_num=1, row_num=0)
         grid.add(ocean_button, col_num=0, row_num=1)
         grid.add(midnight_button, col_num=1, row_num=1)
         grid.add(back_button, col_num=0, row_num=2, col_span=2)
-        grid.add(quit_button, col_num=0, row_num=3, col_span=2)
+        grid.add(menu_button, col_num=0, row_num=3, col_span=2)
+        grid.add(quit_button, col_num=0, row_num=4, col_span=2)
 
         # Align toggle and label horizontally next to each other
         toggle_group = arcade.gui.UIBoxLayout(vertical=False, space_between=5)
@@ -130,6 +134,21 @@ class SettingsMenu(arcade.gui.UIMouseFilterMixin, arcade.gui.UIAnchorLayout):
         # Removes the widget from the manager.
         # After this the manager will respond to its events like it previously did.
         self.parent.remove(self)
+
+    def on_click_menu_button(self, event):
+        """Handle the return to menu button click event."""
+        # Import menu here to avoid circular imports
+        import menu
+        from sound_manager import ManageSound
+        from theme_manager import ManageTheme
+
+        theme_manager = ManageTheme("default")
+        sound_manager = ManageSound(1)
+
+        # Get the window from the current view
+        window = arcade.get_window()
+        menu_view = menu.MenuView(theme_manager.theme, sound_manager.get_volume())
+        window.show_view(menu_view)
 
     def on_click_quit_button(self, event):
         """Handle the quit button click event."""

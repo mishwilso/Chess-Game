@@ -21,17 +21,19 @@ SQUARE_WIDTH = (BOARD_WIDTH - 200) // 8
 SQUARE_HEIGHT = BOARD_HEIGHT // 8
 
 class Computer:
-    def __init__(self, allegiance: str, board):
+    def __init__(self, allegiance: str, board, difficulty=2):
         """
         Initialize the Computer object.
 
         Parameters:
         - allegiance (str): The allegiance of the computer player ("White" or "Black").
         - board: The game board representing the current game state.
+        - difficulty (int): Difficulty level (1=easy, 2=medium, 3=hard).
         """
         self.board_array = board
 
         self.allegiance = allegiance
+        self.difficulty = difficulty
         self.demo_board = copy(board)
         self.sound_manager = ManageSound(1)
         # self.make_demo_board()
@@ -183,7 +185,7 @@ class Computer:
         Make the best move based on evaluation depth.
 
         Parameters:
-        - depth (int): Depth of evaluation for the best move.
+        - depth (int): Depth of evaluation for the best move (1=easy, 2=medium, 3=hard).
 
         Returns:
         - piece (Piece): The piece selected for the best move.
@@ -194,9 +196,39 @@ class Computer:
         is_cap = False
         capped_piece = None
         self.demo_board = copy(self.board_array)
-        best_moves = self.evaluate(depth)
 
-        piece, move = self.get_best(best_moves)
+        # Easy difficulty: 70% random moves, 30% best moves
+        if depth == 1:
+            if random.random() < 0.7:
+                # Make a random valid move
+                available_pieces = self.select_piece()
+                valid_piece_moves = []
+
+                for p in available_pieces:
+                    possible_moves, possible_captures, attacks = p.available_moves(False)
+                    for move in possible_moves + possible_captures:
+                        valid_piece_moves.append((p, move))
+
+                if valid_piece_moves:
+                    piece, move = random.choice(valid_piece_moves)
+                else:
+                    # Fallback to best move if no valid moves found
+                    best_moves = self.evaluate(1)
+                    piece, move = self.get_best(best_moves)
+            else:
+                # Make the best move
+                best_moves = self.evaluate(1)
+                piece, move = self.get_best(best_moves)
+
+        # Medium difficulty: uses depth 2 minimax
+        elif depth == 2:
+            best_moves = self.evaluate(2)
+            piece, move = self.get_best(best_moves)
+
+        # Hard difficulty: uses depth 3 minimax (looks further ahead)
+        else:
+            best_moves = self.evaluate(3)
+            piece, move = self.get_best(best_moves)
 
         if self.board_array[move[0]][move[1]] != self.allegiance and self.board_array[move[0]][move[1]] is not None:
             is_cap = True

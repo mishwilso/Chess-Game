@@ -84,15 +84,29 @@ class GameView(arcade.View):
                                                 text="Player vs Player",
                                                 style=default_style)
 
-        computer_button = arcade.gui.UIFlatButton(x=CENTER_WIDTH - 125,
-                                                  y=CENTER_HEIGHT - 70,
-                                                  width=250,
-                                                  height=60,
-                                                  text="Player vs Computer",
-                                                  style=default_style)
+        computer_easy_button = arcade.gui.UIFlatButton(x=CENTER_WIDTH - 125,
+                                                       y=CENTER_HEIGHT - 70,
+                                                       width=250,
+                                                       height=60,
+                                                       text="Player vs AI (Easy)",
+                                                       style=default_style)
+
+        computer_medium_button = arcade.gui.UIFlatButton(x=CENTER_WIDTH - 125,
+                                                          y=CENTER_HEIGHT - 140,
+                                                          width=250,
+                                                          height=60,
+                                                          text="Player vs AI (Medium)",
+                                                          style=default_style)
+
+        computer_hard_button = arcade.gui.UIFlatButton(x=CENTER_WIDTH - 125,
+                                                        y=CENTER_HEIGHT - 210,
+                                                        width=250,
+                                                        height=60,
+                                                        text="Player vs AI (Hard)",
+                                                        style=default_style)
 
         return_button = arcade.gui.UIFlatButton(x=CENTER_WIDTH - 125,
-                                                y=CENTER_HEIGHT - 140,
+                                                y=CENTER_HEIGHT - 280,
                                                 width=250,
                                                 height=60,
                                                 text="Return to Main Menu",
@@ -110,16 +124,57 @@ class GameView(arcade.View):
                                                      height=60,
                                                      texture=self.tutorial_png)
 
+        # Theme selection buttons
+        default_theme_button = arcade.gui.UIFlatButton(x=CENTER_WIDTH - 270,
+                                                       y=CENTER_HEIGHT - 375,
+                                                       width=120,
+                                                       height=50,
+                                                       text="Default",
+                                                       style=self.get_theme_button_style(arcade.color.ALMOND))
+
+        pink_theme_button = arcade.gui.UIFlatButton(x=CENTER_WIDTH - 130,
+                                                     y=CENTER_HEIGHT - 375,
+                                                     width=120,
+                                                     height=50,
+                                                     text="Pink",
+                                                     style=self.get_theme_button_style(arcade.color.CAMEO_PINK))
+
+        ocean_theme_button = arcade.gui.UIFlatButton(x=CENTER_WIDTH + 10,
+                                                      y=CENTER_HEIGHT - 375,
+                                                      width=120,
+                                                      height=50,
+                                                      text="Ocean",
+                                                      style=self.get_theme_button_style(arcade.color.PALE_ROBIN_EGG_BLUE))
+
+        midnight_theme_button = arcade.gui.UIFlatButton(x=CENTER_WIDTH + 150,
+                                                         y=CENTER_HEIGHT - 375,
+                                                         width=120,
+                                                         height=50,
+                                                         text="Midnight",
+                                                         style=self.get_theme_button_style(arcade.color.QUEEN_BLUE))
+
         @player_button.event("on_click")
         def on_click_switch_button(event):
             sound_manager.play_button_sound()
             game_view = board.Board("player")
             self.window.show_view(game_view)
 
-        @computer_button.event("on_click")
+        @computer_easy_button.event("on_click")
         def on_click_switch_button(event):
             sound_manager.play_button_sound()
-            game_view = board.Board("computer")
+            game_view = board.Board("computer", difficulty=1)
+            self.window.show_view(game_view)
+
+        @computer_medium_button.event("on_click")
+        def on_click_switch_button(event):
+            sound_manager.play_button_sound()
+            game_view = board.Board("computer", difficulty=2)
+            self.window.show_view(game_view)
+
+        @computer_hard_button.event("on_click")
+        def on_click_switch_button(event):
+            sound_manager.play_button_sound()
+            game_view = board.Board("computer", difficulty=3)
             self.window.show_view(game_view)
 
         @return_button.event("on_click")
@@ -151,15 +206,80 @@ class GameView(arcade.View):
                 tutorial_menu
             )
 
+        @default_theme_button.event("on_click")
+        def on_click_switch_button(event):
+            sound_manager.play_button_sound()
+            theme_manager.set_theme("default")
+
+        @pink_theme_button.event("on_click")
+        def on_click_switch_button(event):
+            sound_manager.play_button_sound()
+            theme_manager.set_theme("pink")
+
+        @ocean_theme_button.event("on_click")
+        def on_click_switch_button(event):
+            sound_manager.play_button_sound()
+            theme_manager.set_theme("ocean")
+
+        @midnight_theme_button.event("on_click")
+        def on_click_switch_button(event):
+            sound_manager.play_button_sound()
+            theme_manager.set_theme("midnight")
+
         self.manager.add(tutorial_button)
         self.manager.add(settings_button)
 
         self.manager.add(player_button)
-        self.manager.add(computer_button)
+        self.manager.add(computer_easy_button)
+        self.manager.add(computer_medium_button)
+        self.manager.add(computer_hard_button)
+
+        self.manager.add(default_theme_button)
+        self.manager.add(pink_theme_button)
+        self.manager.add(ocean_theme_button)
+        self.manager.add(midnight_theme_button)
+
         self.manager.add(return_button)
 
         # Create theme manager object and set theme
         theme_manager = ManageTheme(theme)
+
+    def get_theme_button_style(self, color):
+        """Return styled button properties for theme buttons."""
+        return {
+            "normal": UIFlatButtonStyle(
+                font_size=12,
+                font_name=("calibri", "arial"),
+                font_color=arcade.color.BLACK,
+                bg=color,
+                border=None,
+                border_width=0,
+            ),
+            "hover": UIFlatButtonStyle(
+                font_size=12,
+                font_name=("calibri", "arial"),
+                font_color=arcade.color.WHITE,
+                bg=color,
+                border=arcade.color.WHITE,
+                border_width=2,
+            ),
+            "press": UIFlatButtonStyle(
+                font_size=12,
+                font_name=("calibri", "arial"),
+                font_color=arcade.color.WHITE,
+                bg=color,
+                border=arcade.color.BLACK,
+                border_width=2,
+            ),
+            "disabled": UIFlatButtonStyle(
+                font_size=12,
+                font_name=("calibri", "arial"),
+                font_color=arcade.color.WHITE,
+                bg=arcade.color.COOL_GREY,
+                border=arcade.color.ASH_GREY,
+                border_width=2,
+            )
+        }
 
     def on_show_view(self):
         """ This is run once when we switch to this view """
@@ -193,24 +313,34 @@ class GameView(arcade.View):
                                              color)
 
         arcade.draw_rectangle_outline(center_x= CENTER_WIDTH,
-                                      center_y=CENTER_HEIGHT - 40,
+                                      center_y=CENTER_HEIGHT - 110,
                                       width=295,
-                                      height=260,
+                                      height=380,
                                       color=arcade.color.WHITE,
                                       border_width=4)
 
         arcade.draw_rectangle_outline(center_x=CENTER_WIDTH,
-                                      center_y=CENTER_HEIGHT - 40,
+                                      center_y=CENTER_HEIGHT - 110,
                                       width=275,
-                                      height=240,
+                                      height=360,
                                       color=bg_color,
                                       border_width=3)
 
         arcade.draw_rectangle_filled(center_x=CENTER_WIDTH,
-                                     center_y=CENTER_HEIGHT - 40,
+                                     center_y=CENTER_HEIGHT - 110,
                                      width=270,
-                                     height=230,
+                                     height=355,
                                      color=black_capture_bg)
+
+        # Draw theme selection label
+        arcade.draw_text("Board Theme:",
+                         CENTER_WIDTH,
+                         CENTER_HEIGHT + 180,
+                         arcade.color.WHITE,
+                         font_size=18,
+                         anchor_x="center",
+                         font_name="Kenney Blocks",
+                         bold=True)
 
         self.logo.draw_sized(center_x=CENTER_WIDTH, center_y=CENTER_HEIGHT + 100, width=700, height=580)
         self.manager.draw()

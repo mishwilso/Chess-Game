@@ -62,9 +62,10 @@ black_allegiance = "Black"
 
 
 class Board(arcade.View):
-    def __init__(self, versus):
+    def __init__(self, versus, difficulty=2):
         super().__init__()
         self.versus = versus
+        self.difficulty = difficulty  # 1 = easy, 2 = medium, 3 = hard
         self.manager = arcade.gui.UIManager()
 
         # Define Managers
@@ -100,9 +101,9 @@ class Board(arcade.View):
         self.BLACK_TIME = timedelta(minutes=5)
         self.current_turn_start = None
 
-        # testing Computer
+        # Initialize Computer with difficulty setting
         # this takes in an allegiance and the board array containing pieces
-        self.computer = computer.Computer('Black', self.board)
+        self.computer = computer.Computer('Black', self.board, self.difficulty)
 
         # 2D list to keep track of whether each square is selected
         # I made this separate from the board array, since the board array
@@ -165,6 +166,16 @@ class Board(arcade.View):
         self.promotion_triggered = False
         self.castle_triggered = False
 
+        # Pawn promotion variables
+        self.promotion_menu_active = False
+        self.promoting_pawn_row = None
+        self.promoting_pawn_col = None
+
+        # Check notification variables
+        self.white_in_check = False
+        self.black_in_check = False
+        self.check_notification_time = None
+
     def on_show(self):
         arcade.set_background_color(self.bg_color)
         self.manager.enable()
@@ -174,6 +185,11 @@ class Board(arcade.View):
         self.manager.disable()
 
     def on_update(self, delta_time):
+        # Clear check notification after 3 seconds
+        if self.check_notification_time is not None:
+            if datetime.now() - self.check_notification_time > timedelta(seconds=3):
+                self.check_notification_time = None
+
         # Provide conditions for the timer, check to see if the turn has begun
         if self.current_turn_start is not None:
             if self.versus == "player":
@@ -211,9 +227,9 @@ class Board(arcade.View):
 
                 """ Check for pawn promotion """
                 if not self.promotion_triggered:
-                    # Allows pawn to move to position before promoting to queen
+                    # Allows pawn to move to position before promoting
                     if self.selected_piece.promotable():
-                        self.promote_pawn_to_queen(self.selected_piece.current_row, self.selected_piece.current_col)
+                        self.show_promotion_menu(self.selected_piece.current_row, self.selected_piece.current_col)
                         self.promotion_triggered = True
                     elif self.computer_piece is not None and self.computer_piece.promotable():
                         self.promote_pawn_to_queen(self.computer_piece.current_row, self.computer_piece.current_col)
@@ -345,6 +361,14 @@ class Board(arcade.View):
         self.draw_timer(self.WHITE_TIME, "White")
         self.draw_timer(self.BLACK_TIME, "Black")
 
+        # Draw promotion menu if active
+        if self.promotion_menu_active:
+            self.draw_promotion_menu()
+
+        # Draw check notification if active
+        if self.check_notification_time is not None:
+            self.draw_check_notification()
+
         self.manager.draw()
 
     def draw_timer(self, remaining_time, player):
@@ -401,8 +425,166 @@ class Board(arcade.View):
                              anchor_x="center"
                              )
 
+    def draw_promotion_menu(self):
+        """
+            Draws the pawn promotion selection menu
+        """
+        square_width = (BOARD_WIDTH - 200) // COLS
+        square_height = BOARD_HEIGHT // ROWS
+
+        # Draw semi-transparent overlay
+        arcade.draw_rectangle_filled(
+            center_x=SCREEN_WIDTH // 2,
+            center_y=SCREEN_HEIGHT // 2,
+            width=SCREEN_WIDTH,
+            height=SCREEN_HEIGHT,
+            color=(0, 0, 0, 180)
+        )
+
+        # Draw menu background
+        menu_width = 600
+        menu_height = 300
+        arcade.draw_rectangle_filled(
+            center_x=SCREEN_WIDTH // 2,
+            center_y=SCREEN_HEIGHT // 2,
+            width=menu_width,
+            height=menu_height,
+            color=self.white_capture_bg
+        )
+
+        arcade.draw_rectangle_outline(
+            center_x=SCREEN_WIDTH // 2,
+            center_y=SCREEN_HEIGHT // 2,
+            width=menu_width,
+            height=menu_height,
+            color=self.light_square_color,
+            border_width=4
+        )
+
+        # Draw title
+        arcade.draw_text(
+            "Promote Pawn To:",
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT // 2 + 100,
+            self.light_square_color,
+            font_size=24,
+            anchor_x="center",
+            font_name="Kenney Blocks"
+        )
+
+        # Draw piece selection boxes
+        piece_types = ['queen', 'rook', 'bishop', 'knight']
+        piece_names = ['Queen', 'Rook', 'Bishop', 'Knight']
+        box_size = 100
+        spacing = 120
+        start_x = SCREEN_WIDTH // 2 - (spacing * 1.5)
+
+        for i, (piece_type, piece_name) in enumerate(zip(piece_types, piece_names)):
+            box_x = start_x + (i * spacing)
+            box_y = SCREEN_HEIGHT // 2
+
+            # Draw box
+            arcade.draw_rectangle_filled(
+                center_x=box_x,
+                center_y=box_y,
+                width=box_size,
+                height=box_size,
+                color=self.light_square_color if (i % 2 == 0) else self.dark_square_color
+            )
+
+            arcade.draw_rectangle_outline(
+                center_x=box_x,
+                center_y=box_y,
+                width=box_size,
+                height=box_size,
+                color=self.light_square_color,
+                border_width=3
+            )
+
+            # Draw piece name
+            arcade.draw_text(
+                piece_name,
+                box_x,
+                box_y - 70,
+                self.light_square_color,
+                font_size=14,
+                anchor_x="center",
+                font_name="Kenney Blocks"
+            )
+
+    def draw_check_notification(self):
+        """
+            Draws a notification when a king is in check
+        """
+        square_width = (BOARD_WIDTH - 200) // COLS
+        square_height = BOARD_HEIGHT // ROWS
+
+        # Determine which player is in check
+        if self.white_in_check:
+            check_text = "WHITE KING IN CHECK!"
+            text_color = arcade.color.RED
+        elif self.black_in_check:
+            check_text = "BLACK KING IN CHECK!"
+            text_color = arcade.color.RED
+        else:
+            return
+
+        # Draw notification box
+        notification_width = 400
+        notification_height = 80
+        notification_x = SCREEN_WIDTH // 2
+        notification_y = SCREEN_HEIGHT - 100
+
+        # Draw background
+        arcade.draw_rectangle_filled(
+            center_x=notification_x,
+            center_y=notification_y,
+            width=notification_width,
+            height=notification_height,
+            color=(50, 50, 50, 220)
+        )
+
+        # Draw border
+        arcade.draw_rectangle_outline(
+            center_x=notification_x,
+            center_y=notification_y,
+            width=notification_width,
+            height=notification_height,
+            color=text_color,
+            border_width=4
+        )
+
+        # Draw text
+        arcade.draw_text(
+            check_text,
+            notification_x,
+            notification_y,
+            text_color,
+            font_size=20,
+            anchor_x="center",
+            anchor_y="center",
+            font_name="Kenney Blocks",
+            bold=True
+        )
+
     def on_mouse_press(self, x, y, button, modifiers):
         global current_turn_start
+
+        # Handle promotion menu clicks
+        if self.promotion_menu_active:
+            piece_types = ['queen', 'rook', 'bishop', 'knight']
+            box_size = 100
+            spacing = 120
+            start_x = SCREEN_WIDTH // 2 - (spacing * 1.5)
+            box_y = SCREEN_HEIGHT // 2
+
+            for i, piece_type in enumerate(piece_types):
+                box_x = start_x + (i * spacing)
+                # Check if click is within this box
+                if (box_x - box_size // 2 <= x <= box_x + box_size // 2 and
+                    box_y - box_size // 2 <= y <= box_y + box_size // 2):
+                    self.promote_pawn(piece_type)
+                    return
 
         if self.selected_piece is not None and self.selected_piece.is_moving:
             # Piece is still moving, do not allow any interaction
@@ -642,6 +824,41 @@ class Board(arcade.View):
         piece = p.Queen(self.selected_piece.allegiance, self.board, [row, col])
         self.board[row][col] = piece
 
+    def show_promotion_menu(self, row, col):
+        """
+            Shows a menu to select which piece to promote the pawn to
+            :param row: row of the promoting pawn
+            :param col: column of the promoting pawn
+        """
+        self.promotion_menu_active = True
+        self.promoting_pawn_row = row
+        self.promoting_pawn_col = col
+
+    def promote_pawn(self, piece_type):
+        """
+            Promotes a pawn to the selected piece type
+            :param piece_type: string indicating piece type ('queen', 'rook', 'bishop', 'knight')
+        """
+        sound_manager.play_promote_sound()
+
+        row = self.promoting_pawn_row
+        col = self.promoting_pawn_col
+        allegiance = self.board[row][col].allegiance
+
+        if piece_type == 'queen':
+            piece = p.Queen(allegiance, self.board, [row, col])
+        elif piece_type == 'rook':
+            piece = p.Rook(allegiance, self.board, [row, col])
+        elif piece_type == 'bishop':
+            piece = p.Bishop(allegiance, self.board, [row, col])
+        elif piece_type == 'knight':
+            piece = p.Knight(allegiance, self.board, [row, col])
+
+        self.board[row][col] = piece
+        self.promotion_menu_active = False
+        self.promoting_pawn_row = None
+        self.promoting_pawn_col = None
+
     def castle_rook(self, row, col, new_col):
         """
             Moves the rook for castle
@@ -662,6 +879,13 @@ class Board(arcade.View):
     def switch_turn(self):
         self.promotion_triggered = False
         self.castle_triggered = False
+
+        # Clear check flags when not in check anymore
+        if not self.white_in_check:
+            self.check_notification_time = None
+        if not self.black_in_check:
+            self.check_notification_time = None
+
         # Switch the turn between white and black
         if self.current_turn == white_allegiance:
             self.current_turn = black_allegiance
@@ -680,7 +904,7 @@ class Board(arcade.View):
         # Handle computer input for black's turn
         if self.current_turn == black_allegiance:
 
-            computer_piece, coords, computer_cap, capped_piece = self.computer.make_best_move(2)
+            computer_piece, coords, computer_cap, capped_piece = self.computer.make_best_move(self.difficulty)
 
             print(f"Move {computer_piece} to {coords}")
             old_coords = [computer_piece.current_row, computer_piece.current_col]
@@ -753,6 +977,16 @@ class Board(arcade.View):
             # if that piece is the king, check if it is in check
             if isinstance(i, p.King):
                 king_in_check = i.under_attack(i.current_row, i.current_col)
+
+        # Update check status for notifications
+        if allegiance == 'White':
+            self.white_in_check = king_in_check
+            if king_in_check and self.check_notification_time is None:
+                self.check_notification_time = datetime.now()
+        else:
+            self.black_in_check = king_in_check
+            if king_in_check and self.check_notification_time is None:
+                self.check_notification_time = datetime.now()
 
         all_moves = []
         for i in pieces:
