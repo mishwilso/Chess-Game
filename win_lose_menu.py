@@ -12,13 +12,14 @@ import time
 class WinLoseMenu(arcade.gui.UIMouseFilterMixin, arcade.gui.UIAnchorLayout):
     """Acts like a fake view/window."""
 
-    def __init__(self, theme_manager, winner, game_manager):
+    def __init__(self, theme_manager, winner, game_manager, game_stats=None):
         """
         Initialize the WinLoseMenu window.
         Parameters:
         - theme_manager: An instance of ManageTheme class for managing themes.
         - winner (str): The winner of the game ('black', 'white', or 'draw').
         - game_manager: An instance of ManageGame class for managing game states.
+        - game_stats (dict): Dictionary containing game statistics (optional).
         """
         super().__init__(size_hint=(1, 1))
 
@@ -26,57 +27,85 @@ class WinLoseMenu(arcade.gui.UIMouseFilterMixin, arcade.gui.UIAnchorLayout):
         self.light_square_color, self.dark_square_color = theme_manager.get_theme(theme)
         self.result = ""
         self.back_clicked = False
+        self.game_stats = game_stats if game_stats else {}
+
+        # Store screen dimensions for drawing outline
+        self.screen_width, self.screen_height = arcade.get_display_size()
 
         # Setup frame which will act like the window.
-        frame = self.add(arcade.gui.UIAnchorLayout(width=500, height=400, size_hint=None))
+        frame = self.add(arcade.gui.UIAnchorLayout(width=600, height=500, size_hint=None))
         frame.with_padding(all=20)
 
+        # Set winner text
         if winner == "black":
-            banner_image = arcade.gui.UISpriteWidget(
-                sprite=arcade.Sprite(texture=arcade.load_texture("banners/black_banner.png")),
-                width=450,
-                height=110)
+            winner_text = "BLACK WINS!"
         elif winner == "white":
-            banner_image = arcade.gui.UISpriteWidget(
-                sprite=arcade.Sprite(texture=arcade.load_texture("pieces_png/white_banner.png")),
-                width=450,
-                height=110)
+            winner_text = "WHITE WINS!"
         else:
-            banner_image = arcade.gui.UISpriteWidget(
-                sprite=arcade.Sprite(texture=arcade.load_texture("banners/draw_banner.png")),
-                width=450,
-                height=110)
+            winner_text = "DRAW!"
 
-        frame.with_background(texture=arcade.load_texture(
-            "assets/grey_panel.png"), start=(7, 7), end=(7, 7))
+        # Get theme colors
+        bg_color, _, _ = theme_manager.get_background(theme)
+
+        # Set background based on theme
+        frame.with_background(color=bg_color)
+
+        # Create winner title label
+        winner_label = arcade.gui.UITextArea(
+            text=winner_text,
+            width=520,
+            height=60,
+            font_size=32,
+            font_name="Kenney Blocks",
+            text_color=self.light_square_color
+        )
+
+        # Create statistics text if available
+        stats_text = ""
+        if self.game_stats:
+            stats_text = (
+                f"Total Moves: {self.game_stats.get('total_moves', 0)}\n"
+                f"Game Duration: {self.game_stats.get('game_duration', 'N/A')}\n"
+                f"White Captures: {self.game_stats.get('white_captures', 0)}\n"
+                f"Black Captures: {self.game_stats.get('black_captures', 0)}\n"
+                f"White Time: {self.game_stats.get('white_time_remaining', 'N/A')}\n"
+            )
+
+        # Create statistics label
+        stats_label = arcade.gui.UITextArea(
+            text=stats_text,
+            width=520,
+            height=150,
+            font_size=14,
+            font_name="Kenney Blocks",
+            text_color=self.light_square_color
+        )
 
         # The type of event listener we used earlier for the button will not work here.
         replay_button = arcade.gui.UIFlatButton(text="Replay",
-                                                width=350)
+                                                width=520)
+
+        # Button layout for centered buttons
+        button_layout = arcade.gui.UIBoxLayout(vertical=False, space_between=10)
 
         menu_button = arcade.gui.UIFlatButton(text="Main Menu",
-                                              width=170)
+                                              width=255)
 
-        quit_button = arcade.gui.UIFlatButton(text="Quit", width=170)
+        quit_button = arcade.gui.UIFlatButton(text="Quit", width=255)
 
-        grid = arcade.gui.UIGridLayout(x=0, y=0, column_count=2, row_count=2, horizontal_spacing=7, vertical_spacing=20)
+        button_layout.add(menu_button)
+        button_layout.add(quit_button)
 
-        grid.add(replay_button, col_num=0, row_num=0, col_span=2)
-        grid.add(menu_button, col_num=0, row_num=1)
-        grid.add(quit_button, col_num=1, row_num=1)
+        # Main vertical layout
+        widget_layout = arcade.gui.UIBoxLayout(align="center", space_between=15, vertical=True)
 
-        widget_layout = arcade.gui.UIBoxLayout(align="center", space_between=0)
+        # Add winner title
+        widget_layout.add(winner_label)
+        widget_layout.add(stats_label)
+        widget_layout.add(replay_button)
+        widget_layout.add(button_layout)
 
-        image = arcade.gui.UISpriteWidget(
-            sprite=arcade.Sprite(texture=arcade.load_texture("assets/piece_background.png")),
-            width=60,
-            height=60)
-
-        widget_layout.add(image)
-        widget_layout.add(banner_image)
-
-        frame.add(child=widget_layout, anchor_x="center", anchor_y="top")
-        frame.add(child=grid, anchor_x="left", anchor_y="top", align_y=-200, align_x=50)
+        frame.add(child=widget_layout, anchor_x="center", anchor_y="center")
 
         @replay_button.event("on_click")
         def on_click_switch_button(event):
@@ -107,3 +136,34 @@ class WinLoseMenu(arcade.gui.UIMouseFilterMixin, arcade.gui.UIAnchorLayout):
             """
             time.sleep(.15)
             arcade.exit()
+
+    def do_render(self, surface):
+        """Override to draw double outline around the menu."""
+        # Draw the UI elements first
+        super().do_render(surface)
+
+        # Calculate menu position (centered on screen)
+        menu_width = 600
+        menu_height = 500
+        center_x = self.screen_width // 2
+        center_y = self.screen_height // 2
+
+        # Draw outer outline (thicker, offset)
+        arcade.draw_rectangle_outline(
+            center_x=center_x,
+            center_y=center_y,
+            width=menu_width + 20,
+            height=menu_height + 20,
+            color=self.light_square_color,
+            border_width=3
+        )
+
+        # Draw inner outline
+        arcade.draw_rectangle_outline(
+            center_x=center_x,
+            center_y=center_y,
+            width=menu_width + 10,
+            height=menu_height + 10,
+            color=self.light_square_color,
+            border_width=2
+        )

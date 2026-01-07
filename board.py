@@ -176,6 +176,13 @@ class Board(arcade.View):
         self.black_in_check = False
         self.check_notification_time = None
 
+        # Game statistics
+        self.white_pieces_captured = 0
+        self.black_pieces_captured = 0
+        self.total_moves = 0
+        self.game_start_time = datetime.now()
+        self.game_end_time = None
+
     def on_show(self):
         arcade.set_background_color(self.bg_color)
         self.manager.enable()
@@ -477,6 +484,10 @@ class Board(arcade.View):
             font_name="Kenney Blocks"
         )
 
+        # Get the allegiance of the promoting pawn
+        allegiance = self.board[self.promoting_pawn_row][self.promoting_pawn_col].allegiance
+        color_prefix = "white" if allegiance == "White" else "black"
+
         # Draw piece selection boxes
         piece_types = ['queen', 'rook', 'bishop', 'knight']
         piece_names = ['Queen', 'Rook', 'Bishop', 'Knight']
@@ -504,6 +515,16 @@ class Board(arcade.View):
                 height=box_size,
                 color=self.light_square_color,
                 border_width=3
+            )
+
+            # Load and draw piece image
+            piece_texture = arcade.load_texture(f"pieces_png/{color_prefix}-{piece_type}.png")
+            arcade.draw_texture_rectangle(
+                center_x=box_x,
+                center_y=box_y,
+                width=box_size - 10,
+                height=box_size - 10,
+                texture=piece_texture
             )
 
             # Draw piece name
@@ -774,6 +795,9 @@ class Board(arcade.View):
         x = (col * SQUARE_WIDTH) + (SCREEN_WIDTH / 3.25)
         y = (row * SQUARE_HEIGHT) + (SCREEN_HEIGHT // 6)
 
+        # Increment move counter
+        self.total_moves += 1
+
         """Check if castle move"""
         castle = self.selected_piece.check_castle(row, col)
         if castle is not None:
@@ -937,6 +961,12 @@ class Board(arcade.View):
 
         sound_manager.play_capture_sound()
 
+        # Track captures for statistics
+        if piece.allegiance == "White":
+            self.white_pieces_captured += 1
+        else:
+            self.black_pieces_captured += 1
+
         for row in range(8):
             for col in range(2):
                 if piece.allegiance == "White":
@@ -1002,17 +1032,38 @@ class Board(arcade.View):
 
         # if there are no possible moves and the king is in check
         if all_moves == [] and king_in_check:
+            self.game_end_time = datetime.now()
+            game_stats = self.get_game_statistics()
             if pieces[0].allegiance == 'White':
-                win_menu = w.WinLoseMenu(theme_manager, "black", game_manager)
+                win_menu = w.WinLoseMenu(theme_manager, "black", game_manager, game_stats)
                 self.manager.add(win_menu)
                 end_game = True
             else:
-                win_menu = w.WinLoseMenu(theme_manager, "white", game_manager)
+                win_menu = w.WinLoseMenu(theme_manager, "white", game_manager, game_stats)
                 self.manager.add(win_menu)
                 end_game = True
         elif all_moves == [] and not king_in_check:
-            win_menu = w.WinLoseMenu(theme_manager, "draw", game_manager)
+            self.game_end_time = datetime.now()
+            game_stats = self.get_game_statistics()
+            win_menu = w.WinLoseMenu(theme_manager, "draw", game_manager, game_stats)
             self.manager.add(win_menu)
             end_game = True
 
         return end_game
+
+    def get_game_statistics(self):
+        """
+        Returns a dictionary containing game statistics
+        """
+        game_duration = self.game_end_time - self.game_start_time
+        minutes = int(game_duration.total_seconds() // 60)
+        seconds = int(game_duration.total_seconds() % 60)
+
+        return {
+            'total_moves': self.total_moves,
+            'white_captures': self.black_pieces_captured,  # White captured black pieces
+            'black_captures': self.white_pieces_captured,  # Black captured white pieces
+            'game_duration': f"{minutes}m {seconds}s",
+            'white_time_remaining': f"{self.WHITE_TIME.seconds // 60}:{self.WHITE_TIME.seconds % 60:02d}",
+            'black_time_remaining': f"{self.BLACK_TIME.seconds // 60}:{self.BLACK_TIME.seconds % 60:02d}"
+        }
